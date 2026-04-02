@@ -2,7 +2,7 @@
 name: figma-wireframes
 description: Create or refine low-fidelity wireframes in Figma from a page-level brief, focusing on structure, hierarchy, and user flows rather than visual design.
 disable-model-invocation: true
-argument-hint: [brief or screen request]
+argument-hint: "[brief or screen request]"
 ---
 
 # Figma Wireframes (Structure-Focused)
