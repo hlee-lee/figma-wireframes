@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>かな練習 — Kana Practice</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: #f5f0eb;
+    color: #2c2c2c;
+    padding: 1.5rem 2.5rem 2.5rem;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+    border-bottom: 1px solid #c9bfb4;
+  }
+
+  .tab {
+    padding: 0.5rem 3.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: none;
+    text-align: center;
+    color: #999;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab.active { color: #2c2c2c; border-bottom-color: #2c2c2c; }
+  .tab:not(.active):hover { color: #666; }
+
+  .tab-content { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  /* Table view */
+  .tables-container {
+    display: flex;
+    gap: 0.8rem;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  button {
+    padding: 0.25rem 0.7rem;
+    border: 2px solid #2c2c2c;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  button:hover { background: #2c2c2c; color: #fff; }
+  button:active { transform: scale(0.96); }
+
+  .shuffle-btn { background: #e8ddd3; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: #c9bfb4;
+    border-radius: 6px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    font-size: clamp(0.75rem, 1.6vw, 1.2rem);
+    transition: transform 0.25s ease, opacity 0.25s ease, background 0.2s ease;
+    user-select: none;
+    min-height: 0;
+    min-width: 0;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .cell .romaji {
+    position: absolute;
+    right: clamp(2px, 0.4vw, 6px);
+    top: clamp(2px, 0.4vw, 6px);
+    font-size: clamp(0.5rem, 0.8vw, 0.7rem);
+    color: #888;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    line-height: 1;
+  }
+
+  .cell.revealed .romaji { opacity: 1; }
+
+  .cell.revealed { background: #e8f0e8; }
+  .cell.empty { background: #f0ebe5; cursor: default; }
+  .cell.shuffling { transform: scale(0.85); opacity: 0.4; }
+
+  .separator {
+    grid-column: 1 / -1;
+    height: 2px;
+    background: #a89888;
+  }
+
+  /* Quiz view */
+  .quiz-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  /* Setup */
+  .quiz-setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+  }
+
+  .quiz-setup h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .setting-row label {
+    min-width: 150px;
+    text-align: right;
+    font-weight: 500;
+  }
+
+  .setting-row input[type="range"] {
+    width: 160px;
+    accent-color: #2c2c2c;
+  }
+
+  .setting-row .val {
+    min-width: 36px;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+
+  .start-btn {
+    margin-top: 0.5rem;
+    padding: 0.6rem 2.5rem;
+    font-size: 1rem;
+    background: #2c2c2c;
+    color: #fff;
+    border: 2px solid #2c2c2c;
+    border-radius: 8px;
+  }
+
+  .start-btn:hover { background: #444; }
+
+  /* Active quiz */
+  .quiz-active {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .quiz-progress {
+    font-size: 0.85rem;
+    color: #888;
+    font-weight: 600;
+  }
+
+  .quiz-kana {
+    font-size: clamp(4rem, 12vw, 8rem);
+    font-weight: 400;
+    line-height: 1.1;
+  }
+
+  .timer-bar-track {
+    width: 100%;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: #2c2c2c;
+    border-radius: 3px;
+    transition: width 0.1s linear;
+  }
+
+  .timer-bar.warning { background: #c44; }
+
+  .timer-text {
+    font-size: 0.8rem;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .quiz-input {
+    font-size: 1.4rem;
+    padding: 0.5rem 1rem;
+    border: 2px solid #c9bfb4;
+    border-radius: 8px;
+    text-align: center;
+    width: 200px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+
+  .quiz-input:focus { border-color: #2c2c2c; }
+
+  .quiz-feedback {
+    font-size: 1.1rem;
+    font-weight: 600;
+    min-height: 1.6rem;
+    transition: opacity 0.2s;
+  }
+
+  .quiz-feedback.correct { color: #3a8a3a; }
+  .quiz-feedback.wrong { color: #c44; }
+
+  /* Results */
+  .quiz-results {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    max-width: 500px;
+    max-height: 100%;
+    min-height: 0;
+  }
+
+  .quiz-score {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .quiz-score .pct { font-size: 1rem; color: #888; font-weight: 500; }
+
+  .results-list {
+    width: 100%;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    border: 1px solid #c9bfb4;
+    border-radius: 8px;
+  }
+
+  .results-list table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  .results-list th {
+    position: sticky;
+    top: 0;
+    background: #e8ddd3;
+    padding: 0.35rem 0.5rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+  }
+
+  .results-list td {
+    padding: 0.3rem 0.5rem;
+    text-align: center;
+    border-top: 1px solid #eee;
+  }
+
+  .results-list tr.correct-row td { background: #f0f8f0; }
+  .results-list tr.wrong-row td { background: #fdf0f0; }
+
+  .result-icon { font-size: 0.9rem; }
+
+  .results-btns {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .results-btns button {
+    padding: 0.4rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 1rem 1.5rem; overflow: auto; height: auto; min-height: 100vh; }
+    .tables-container { flex-direction: column; gap: 0.5rem; }
+    .grid { flex: none; }
+    .cell {
+      font-size: clamp(0.7rem, 3vw, 1.2rem);
+      padding: 8px 2px;
+    }
+    .cell .romaji { font-size: clamp(0.4rem, 2vw, 0.6rem); }
+    .quiz-kana { font-size: clamp(3rem, 15vw, 6rem); }
+  }
+</style>
+</head>
+<body>
+
+<h1>かな練習</h1>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('table')">テーブル</div>
+  <div class="tab" onclick="switchTab('quiz')">クイズ</div>
+</div>
+
+<div class="tab-content active" id="tab-table">
+  <div class="tables-container">
+    <div class="section" id="hiragana-section">
+      <div class="section-header">
+        <h2>ひらがな</h2>
+        <div class="btn-group">
+          <button class="shuffle-btn" onclick="shuffle('hiragana')">シャッフル</button>
+          <button onclick="reset('hiragana')">リセット</button>
+        </div>
+      </div>
+      <div class="grid" id="hiragana-grid"></div>
+    </div>
+
+    <div class="section" id="katakana-section">
+      <div class="section-header">
+        <h2>カタカナ</h2>
+        <div class="btn-group">
+          <button class="shuffle-btn" onclick="shuffle('katakana')">シャッフル</button>
+          <button onclick="reset('katakana')">リセット</button>
+        </div>
+      </div>
+      <div class="grid" id="katakana-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-content" id="tab-quiz">
+  <div class="quiz-panel">
+
+    <div class="quiz-setup" id="quiz-setup">
+      <h2>クイズ設定 (Quiz Settings)</h2>
+      <div class="setting-row">
+        <label>問題数 (Questions)</label>
+        <input type="range" id="q-count" min="5" max="152" value="20" oninput="document.getElementById('q-count-val').textContent=this.value">
+        <span class="val" id="q-count-val">20</span>
+      </div>
+      <div class="setting-row">
+        <label>制限時間 (Time Limit)</label>
+        <input type="range" id="q-time" min="5" max="60" value="20" oninput="document.getElementById('q-time-val').textContent=this.value+'s'">
+        <span class="val" id="q-time-val">20s</span>
+      </div>
+      <button class="start-btn" onclick="startQuiz()">スタート</button>
+    </div>
+
+    <div class="quiz-active" id="quiz-active">
+      <div class="quiz-progress" id="quiz-progress"></div>
+      <div class="quiz-kana" id="quiz-kana"></div>
+      <div class="timer-bar-track">
+        <div class="timer-bar" id="timer-bar"></div>
+      </div>
+      <div class="timer-text" id="timer-text"></div>
+      <input type="text" class="quiz-input" id="quiz-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="romaji">
+      <div class="quiz-feedback" id="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz-results" id="quiz-results">
+      <div class="quiz-score" id="quiz-score"></div>
+      <div class="results-list" id="results-list"></div>
+      <div class="results-btns">
+        <button onclick="showSetup()">もう一回</button>
+        <button onclick="switchTab('table')">表に戻る</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Romaji lookup
+  const romajiMap = {
+    'あ':'a','い':'i','う':'u','え':'e','お':'o',
+    'か':'ka','き':'ki','く':'ku','け':'ke','こ':'ko',
+    'さ':'sa','し':'shi','す':'su','せ':'se','そ':'so',
+    'た':'ta','ち':'chi','つ':'tsu','て':'te','と':'to',
+    'な':'na','に':'ni','ぬ':'nu','ね':'ne','の':'no',
+    'は':'ha','ひ':'hi','ふ':'fu','へ':'he','ほ':'ho',
+    'ま':'ma','み':'mi','む':'mu','め':'me','も':'mo',
+    'や':'ya','ゆ':'yu','よ':'yo',
+    'ら':'ra','り':'ri','る':'ru','れ':'re','ろ':'ro',
+    'わ':'wa','を':'wo','ん':'n',
+    'が':'ga','ぎ':'gi','ぐ':'gu','げ':'ge','ご':'go',
+    'ざ':'za','じ':'ji','ず':'zu','ぜ':'ze','ぞ':'zo',
+    'だ':'da','ぢ':'di','づ':'du','で':'de','ど':'do',
+    'ば':'ba','び':'bi','ぶ':'bu','べ':'be','ぼ':'bo',
+    'ぱ':'pa','ぴ':'pi','ぷ':'pu','ぺ':'pe','ぽ':'po',
+    'ア':'a','イ':'i','ウ':'u','エ':'e','オ':'o',
+    'カ':'ka','キ':'ki','ク':'ku','ケ':'ke','コ':'ko',
+    'サ':'sa','シ':'shi','ス':'su','セ':'se','ソ':'so',
+    'タ':'ta','チ':'chi','ツ':'tsu','テ':'te','ト':'to',
+    'ナ':'na','ニ':'ni','ヌ':'nu','ネ':'ne','ノ':'no',
+    'ハ':'ha','ヒ':'hi','フ':'fu','ヘ':'he','ホ':'ho',
+    'マ':'ma','ミ':'mi','ム':'mu','メ':'me','モ':'mo',
+    'ヤ':'ya','ユ':'yu','ヨ':'yo',
+    'ラ':'ra','リ':'ri','ル':'ru','レ':'re','ロ':'ro',
+    'ワ':'wa','ヲ':'wo','ン':'n',
+    'ガ':'ga','ギ':'gi','グ':'gu','ゲ':'ge','ゴ':'go',
+    'ザ':'za','ジ':'ji','ズ':'zu','ゼ':'ze','ゾ':'zo',
+    'ダ':'da','ヂ':'di','ヅ':'du','デ':'de','ド':'do',
+    'バ':'ba','ビ':'bi','ブ':'bu','ベ':'be','ボ':'bo',
+    'パ':'pa','ピ':'pi','プ':'pu','ペ':'pe','ポ':'po',
+  };
+
+  // Kana rows
+  const hiraganaRows = [
+    ['あ','い','う','え','お'],
+    ['か','き','く','け','こ'],
+    ['さ','し','す','せ','そ'],
+    ['た','ち','つ','て','と'],
+    ['な','に','ぬ','ね','の'],
+    ['は','ひ','ふ','へ','ほ'],
+    ['ま','み','む','め','も'],
+    ['や',null,'ゆ',null,'よ'],
+    ['ら','り','る','れ','ろ'],
+    ['わ',null,null,null,'を'],
+    ['ん',null,null,null,null],
+    'sep',
+    ['が','ぎ','ぐ','げ','ご'],
+    ['ざ','じ','ず','ぜ','ぞ'],
+    ['だ','ぢ','づ','で','ど'],
+    ['ば','び','ぶ','べ','ぼ'],
+    'sep',
+    ['ぱ','ぴ','ぷ','ぺ','ぽ'],
+  ];
+
+  const katakanaRows = [
+    ['ア','イ','ウ','エ','オ'],
+    ['カ','キ','ク','ケ','コ'],
+    ['サ','シ','ス','セ','ソ'],
+    ['タ','チ','ツ','テ','ト'],
+    ['ナ','ニ','ヌ','ネ','ノ'],
+    ['ハ','ヒ','フ','ヘ','ホ'],
+    ['マ','ミ','ム','メ','モ'],
+    ['ヤ',null,'ユ',null,'ヨ'],
+    ['ラ','リ','ル','レ','ロ'],
+    ['ワ',null,null,null,'ヲ'],
+    ['ン',null,null,null,null],
+    'sep',
+    ['ガ','ギ','グ','ゲ','ゴ'],
+    ['ザ','ジ','ズ','ゼ','ゾ'],
+    ['ダ','ヂ','ヅ','デ','ド'],
+    ['バ','ビ','ブ','ベ','ボ'],
+    'sep',
+    ['パ','ピ','プ','ペ','ポ'],
+  ];
+
+  const data = {
+    hiragana: { rows: hiraganaRows, original: hiraganaRows },
+    katakana: { rows: katakanaRows, original: katakanaRows },
+  };
+
+  // --- Tabs ---
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (tab === 'table' ? i === 0 : i === 1));
+    });
+    document.getElementById('tab-table').classList.toggle('active', tab === 'table');
+    document.getElementById('tab-quiz').classList.toggle('active', tab === 'quiz');
+    if (tab === 'quiz') clearQuizTimer();
+  }
+
+  // --- Table rendering ---
+  function renderGrid(type) {
+    const grid = document.getElementById(type + '-grid');
+    grid.innerHTML = '';
+    const rows = data[type].rows;
+    for (const row of rows) {
+      if (row === 'sep') {
+        const sep = document.createElement('div');
+        sep.className = 'separator';
+        grid.appendChild(sep);
+        continue;
+      }
+      for (const char of row) {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (char ? '' : ' empty');
+        if (char) {
+          const kanaSpan = document.createElement('span');
+          kanaSpan.className = 'kana';
+          kanaSpan.textContent = char;
+          const romajiSpan = document.createElement('span');
+          romajiSpan.className = 'romaji';
+          romajiSpan.textContent = romajiMap[char] || '';
+          cell.appendChild(kanaSpan);
+          cell.appendChild(romajiSpan);
+          cell.addEventListener('click', () => cell.classList.toggle('revealed'));
+        }
+        grid.appendChild(cell);
+      }
+    }
+  }
+
+  function fisherYates(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function shuffle(type) {
+    const grid = document.getElementById(type + '-grid');
+    const cells = grid.querySelectorAll('.cell');
+    cells.forEach(c => c.classList.add('shuffling'));
+    setTimeout(() => {
+      const original = data[type].original;
+      const allKana = [];
+      const structure = [];
+      for (const row of original) {
+        if (row === 'sep') { structure.push('sep'); continue; }
+        const rowShape = row.map(c => c !== null);
+        structure.push(rowShape);
+        for (const c of row) { if (c !== null) allKana.push(c); }
+      }
+      const shuffled = fisherYates(allKana);
+      let idx = 0;
+      const newRows = structure.map(s => {
+        if (s === 'sep') return 'sep';
+        return s.map(hasChar => hasChar ? shuffled[idx++] : null);
+      });
+      data[type].rows = newRows;
+      renderGrid(type);
+      const newCells = grid.querySelectorAll('.cell');
+      newCells.forEach(c => c.classList.add('shuffling'));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          newCells.forEach(c => c.classList.remove('shuffling'));
+        });
+      });
+    }, 200);
+  }
+
+  function reset(type) {
+    const grid = document.getElementById(type + '-grid');
+    const cells = grid.querySelectorAll('.cell');
+    cells.forEach(c => c.classList.add('shuffling'));
+    setTimeout(() => {
+      data[type].rows = data[type].original;
+      renderGrid(type);
+      const newCells = grid.querySelectorAll('.cell');
+      newCells.forEach(c => c.classList.add('shuffling'));
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          newCells.forEach(c => c.classList.remove('shuffling'));
+        });
+      });
+    }, 200);
+  }
+
+  // --- Quiz ---
+  let quizQuestions = [];
+  let quizResults = [];
+  let quizIndex = 0;
+  let quizTimeLimit = 20;
+  let quizTimer = null;
+  let quizTimeLeft = 0;
+  let quizLocked = false;
+
+  function getAllKana() {
+    const all = [];
+    for (const rows of [hiraganaRows, katakanaRows]) {
+      for (const row of rows) {
+        if (row === 'sep') continue;
+        for (const c of row) { if (c) all.push(c); }
+      }
+    }
+    return all;
+  }
+
+  function clearQuizTimer() {
+    if (quizTimer) { clearInterval(quizTimer); quizTimer = null; }
+  }
+
+  function showSetup() {
+    clearQuizTimer();
+    document.getElementById('quiz-setup').style.display = 'flex';
+    document.getElementById('quiz-active').style.display = 'none';
+    document.getElementById('quiz-results').style.display = 'none';
+  }
+
+  function startQuiz() {
+    const count = parseInt(document.getElementById('q-count').value);
+    quizTimeLimit = parseInt(document.getElementById('q-time').value);
+    const allKana = getAllKana();
+    quizQuestions = fisherYates(allKana).slice(0, count);
+    quizResults = [];
+    quizIndex = 0;
+
+    document.getElementById('quiz-setup').style.display = 'none';
+    document.getElementById('quiz-active').style.display = 'flex';
+    document.getElementById('quiz-results').style.display = 'none';
+
+    showQuestion();
+  }
+
+  function showQuestion() {
+    if (quizIndex >= quizQuestions.length) { endQuiz(); return; }
+
+    quizLocked = false;
+    const kana = quizQuestions[quizIndex];
+    document.getElementById('quiz-progress').textContent = (quizIndex + 1) + ' / ' + quizQuestions.length;
+    document.getElementById('quiz-kana').textContent = kana;
+    document.getElementById('quiz-feedback').textContent = '';
+    document.getElementById('quiz-feedback').className = 'quiz-feedback';
+
+    const input = document.getElementById('quiz-input');
+    input.value = '';
+    input.disabled = false;
+    input.focus();
+
+    // Timer
+    quizTimeLeft = quizTimeLimit;
+    updateTimerDisplay();
+    const bar = document.getElementById('timer-bar');
+    bar.style.width = '100%';
+    bar.classList.remove('warning');
+
+    clearQuizTimer();
+    const startTime = Date.now();
+    quizTimer = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      quizTimeLeft = Math.max(0, quizTimeLimit - elapsed);
+      const pct = (quizTimeLeft / quizTimeLimit) * 100;
+      bar.style.width = pct + '%';
+      if (pct < 25) bar.classList.add('warning');
+      updateTimerDisplay();
+
+      if (quizTimeLeft <= 0) {
+        clearQuizTimer();
+        handleTimeout();
+      }
+    }, 100);
+  }
+
+  function updateTimerDisplay() {
+    document.getElementById('timer-text').textContent = Math.ceil(quizTimeLeft) + 's';
+  }
+
+  function handleTimeout() {
+    quizLocked = true;
+    const kana = quizQuestions[quizIndex];
+    const correct = romajiMap[kana];
+    const input = document.getElementById('quiz-input');
+    input.disabled = true;
+
+    quizResults.push({ kana, answer: '—', correct, passed: false });
+
+    const fb = document.getElementById('quiz-feedback');
+    fb.textContent = correct;
+    fb.className = 'quiz-feedback wrong';
+
+    setTimeout(() => { quizIndex++; showQuestion(); }, 1500);
+  }
+
+  function checkAnswer() {
+    if (quizLocked) return;
+    const input = document.getElementById('quiz-input');
+    const answer = input.value.trim().toLowerCase();
+    if (!answer) return;
+
+    quizLocked = true;
+    clearQuizTimer();
+    input.disabled = true;
+
+    const kana = quizQuestions[quizIndex];
+    const correct = romajiMap[kana];
+    const passed = answer === correct;
+
+    quizResults.push({ kana, answer, correct, passed });
+
+    const fb = document.getElementById('quiz-feedback');
+    if (passed) {
+      fb.textContent = '\u2713 ' + correct;
+      fb.className = 'quiz-feedback correct';
+    } else {
+      fb.textContent = correct;
+      fb.className = 'quiz-feedback wrong';
+    }
+
+    setTimeout(() => { quizIndex++; showQuestion(); }, passed ? 800 : 1500);
+  }
+
+  function endQuiz() {
+    clearQuizTimer();
+    document.getElementById('quiz-active').style.display = 'none';
+    document.getElementById('quiz-results').style.display = 'flex';
+
+    const total = quizResults.length;
+    const right = quizResults.filter(r => r.passed).length;
+    const pct = Math.round((right / total) * 100);
+    document.getElementById('quiz-score').innerHTML = right + ' / ' + total + ' <span class="pct">(' + pct + '%)</span>';
+
+    let html = '<table><thead><tr><th>#</th><th>かな</th><th>あなた</th><th>正解</th><th></th></tr></thead><tbody>';
+    quizResults.forEach((r, i) => {
+      const cls = r.passed ? 'correct-row' : 'wrong-row';
+      const icon = r.passed ? '<span class="result-icon" style="color:#3a8a3a">\u2713</span>' : '<span class="result-icon" style="color:#c44">\u2717</span>';
+      html += '<tr class="' + cls + '"><td>' + (i + 1) + '</td><td>' + r.kana + '</td><td>' + r.answer + '</td><td>' + r.correct + '</td><td>' + icon + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('results-list').innerHTML = html;
+  }
+
+  // Enter key to submit
+  document.getElementById('quiz-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkAnswer();
+  });
+
+  // Initial render
+  renderGrid('hiragana');
+  renderGrid('katakana');
+</script>
+</body>
+</html>
